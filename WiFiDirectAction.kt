@@ -1,5 +1,6 @@
 package com.example.sendandrecieveid
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -7,12 +8,14 @@ import android.net.wifi.p2p.WifiP2pManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import android.content.BroadcastReceiver
+import android.net.wifi.p2p.WifiP2pDevice
 import androidx.core.content.ContextCompat.getSystemService
 
 
 class WiFiDirectAction : AppCompatActivity(){
     private lateinit var channel: WifiP2pManager.Channel
     private lateinit var manager: WifiP2pManager
+    private lateinit var receiver: WiFiDirectBroadcastReceiver
     private val intentFilter = IntentFilter()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,36 +28,48 @@ class WiFiDirectAction : AppCompatActivity(){
         manager = getSystemService(WIFI_P2P_SERVICE) as WifiP2pManager
         channel = manager.initialize(this, mainLooper, null)
     }
+    /** register the BroadcastReceiver with the intent values to be matched  */
+    override fun onResume() {
+        super.onResume()
+        receiver = WiFiDirectBroadcastReceiver(manager, channel, this)
+        registerReceiver(receiver, intentFilter)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterReceiver(receiver)
+    }
+
+}
+
+/**
+ * A BroadcastReceiver that notifies of important Wi-Fi p2p events.
+ */
+public class WiFiDirectBroadcastReceiver (
+    private val manager: WifiP2pManager,
+    private val channel: WifiP2pManager.Channel,
+    private val activity: Activity
+) : BroadcastReceiver() {
+
     override fun onReceive(context: Context, intent: Intent) {
-        when(intent.action) {
+        val action: String = intent.action.toString()
+        when (action) {
             WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION -> {
-                // Determine if Wi-Fi Direct mode is enabled or not, alert
-                // the Activity.
-                val state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1)
-                activity.isWifiP2pEnabled = state == WifiP2pManager.WIFI_P2P_STATE_ENABLED
+                // Check to see if Wi-Fi is enabled and notify appropriate activity
             }
             WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
-
-                // The peer list has changed! We should probably do something about
-                // that.
-
+                // Call WifiP2pManager.requestPeers() to get a list of current peers
             }
             WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
-
-                // Connection state changed! We should probably do something about
-                // that.
-
+                // Respond to new connection or disconnections
             }
             WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
-                (activity.supportFragmentManager.findFragmentById(R.id.frag_list) as DeviceListFragment)
-                    .apply {
-                        updateThisDevice(
-                            intent.getParcelableExtra(
-                                WifiP2pManager.EXTRA_WIFI_P2P_DEVICE) as WifiP2pDevice
-                        )
-                    }
+                // Respond to this device's wifi state changing
             }
         }
     }
+
+
 }
+
 
