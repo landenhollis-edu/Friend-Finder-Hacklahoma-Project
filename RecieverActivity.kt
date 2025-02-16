@@ -1,13 +1,10 @@
 package com.example.nearbyshare
 
-import android.graphics.Color
 import android.nfc.NfcAdapter
-import android.nfc.Tag
 import android.nfc.cardemulation.HostApduService
 import android.nfc.tech.IsoDep
 import android.os.Bundle
 import android.util.Log
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
@@ -20,6 +17,7 @@ class ReaderActivity : AppCompatActivity() {
             super.onCreate(savedInstanceState)
             setContentView(R.layout.activity_main)
             nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+
         } catch (e: Exception) {
             Log.e("ReaderActivity", "Error in onCreate", e)
             Toast.makeText(this, "An error occurred while starting the activity", Toast.LENGTH_LONG).show()
@@ -31,8 +29,14 @@ class ReaderActivity : AppCompatActivity() {
         super.onResume()
         if (::nfcAdapter.isInitialized) {
             enableReaderMode()
+            Toast.makeText(this, "Reader mode enabled", Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(this, "NFC adapter not initialized", Toast.LENGTH_SHORT).show()
+            while(!::nfcAdapter.isInitialized) {
+                nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+                Toast.makeText(this, "NFC adapter initializing", Toast.LENGTH_SHORT).show()
+            }
+            Toast.makeText(this, "NFC adapter initialized", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -44,25 +48,23 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     private fun enableReaderMode() {
-        val readerCallback = object : NfcAdapter.ReaderCallback {
-            override fun onTagDiscovered(tag: Tag) {
-                val isoDep = IsoDep.get(tag)
-                isoDep.connect()
+        val readerCallback = NfcAdapter.ReaderCallback { tag ->
+            val isoDep = IsoDep.get(tag)
+            isoDep.connect()
 
-                val selectApdu = buildSelectApdu(AID)
-                val response = isoDep.transceive(selectApdu)
+            val selectApdu = buildSelectApdu(AID)
+            val response = isoDep.transceive(selectApdu)
 
-                if (response.isNotEmpty() && response.takeLast(2).toByteArray().contentEquals(byteArrayOf(0x90.toByte(), 0x00.toByte()))) {
-                    val dataResponse = isoDep.transceive(byteArrayOf(0x00.toByte()))
-                    val receivedString = String(dataResponse.dropLast(2).toByteArray())
+            if (response.isNotEmpty() && response.takeLast(2).toByteArray().contentEquals(byteArrayOf(0x90.toByte(), 0x00.toByte()))) {
+                val dataResponse = isoDep.transceive(byteArrayOf(0x00.toByte()))
+                val receivedString = String(dataResponse.dropLast(2).toByteArray())
 
-                    runOnUiThread {
-                        Toast.makeText(this@ReaderActivity, "Received: $receivedString", Toast.LENGTH_LONG).show()
-                    }
+                runOnUiThread {
+                    Toast.makeText(this@ReaderActivity, "Received: $receivedString", Toast.LENGTH_LONG).show()
                 }
-
-                isoDep.close()
             }
+
+            isoDep.close()
         }
 
         nfcAdapter.enableReaderMode(this, readerCallback,
@@ -122,38 +124,5 @@ class MyHostApduService : HostApduService() {
 
     private fun ByteArray.toHex(): String = joinToString(separator = "") { eachByte -> "%02X".format(eachByte) }
 }
-class NfcDetector : AppCompatActivity() {
-    private lateinit var nfcAdapter: NfcAdapter
-    private lateinit var nfcStatusTextView: TextView
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        nfcStatusTextView = findViewById(R.id.nfcStatusTextView)
-        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
-
-        updateNfcStatus()
-    }
-
-    private fun updateNfcStatus() {
-        if (nfcAdapter == null) {
-            nfcStatusTextView.text = getString(R.string.nfc_status_not_supported)
-        } else {
-            if (nfcAdapter.isEnabled) {
-                nfcStatusTextView.text = getString(R.string.nfc_status_active)
-                nfcStatusTextView.setTextColor(Color.GREEN)
-            } else {
-                nfcStatusTextView.text = getString(R.string.nfc_status_inactive)
-                nfcStatusTextView.setTextColor(Color.RED)
-            }
-        }
-    }
-
-
-    override fun onResume() {
-        super.onResume()
-        updateNfcStatus()
-    }
-}
 
