@@ -13,8 +13,6 @@ import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pDevice
 import android.util.Log
-import android.widget.Toast
-import androidx.core.content.ContextCompat.getSystemService
 
 
 class WiFiDirectAction : AppCompatActivity(){
@@ -24,6 +22,7 @@ class WiFiDirectAction : AppCompatActivity(){
     private val intentFilter = IntentFilter()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.main)
 
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
@@ -59,6 +58,23 @@ public class WiFiDirectBroadcastReceiver (
 
 ) : BroadcastReceiver() {
     private val peers = mutableListOf<WifiP2pDevice>()
+    private val connectionListener = WifiP2pManager.ConnectionInfoListener { info ->
+
+        // String from WifiP2pInfo struct
+        val groupOwnerAddress = info.groupOwnerAddress.hostAddress
+
+        // After the group negotiation, we can determine the group owner
+        // (server).
+        if (info.groupFormed && info.isGroupOwner) {
+            // Do whatever tasks are specific to the group owner.
+            // One common case is creating a group owner thread and accepting
+            // incoming connections.
+        } else if (info.groupFormed) {
+            // The other device acts as the peer (client). In this case,
+            // you'll want to create a peer thread that connects
+            // to the group owner.
+        }
+    }
     override fun onReceive(context: Context, intent: Intent) {
         val action: String = intent.action.toString()
         var isWifiP2pEnabled = false
@@ -83,6 +99,7 @@ public class WiFiDirectBroadcastReceiver (
                 return@PeerListListener
             }
         }
+
         when (action) {
             WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION -> {
                 // Determine if Wi-Fi Direct mode is enabled or not, alert
@@ -91,10 +108,12 @@ public class WiFiDirectBroadcastReceiver (
                 when (state) {
                     WifiP2pManager.WIFI_P2P_STATE_ENABLED -> {
                         isWifiP2pEnabled = true
+                        print("Wifi Good")
                     }
 
                     else -> {
                         isWifiP2pEnabled = false
+                        print("Wifi Busted")
                     }
                 }
             }
@@ -116,6 +135,7 @@ public class WiFiDirectBroadcastReceiver (
 
             WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
                 // Respond to new connection or disconnections
+                manager.requestConnectionInfo(channel, connectionListener)
             }
 
             WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
@@ -136,7 +156,7 @@ public class WiFiDirectBroadcastReceiver (
         manager.connect(channel, config, object : WifiP2pManager.ActionListener {
 
             override fun onSuccess() {
-                // WiFiDirectBroadcastReceiver notifies us. Ignore for now.
+                print("Device Found")
             }
 
             override fun onFailure(reason: Int) {
