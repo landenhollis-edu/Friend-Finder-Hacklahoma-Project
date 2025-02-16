@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FrinderOriginal"
+rootProject.name = "NearbyShare"
 include(":app")
  
